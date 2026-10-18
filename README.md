@@ -52,6 +52,7 @@ Then open the URL printed in the terminal (usually <http://localhost:5173>).
 | `npm run build` | Type-check and build a production bundle into `dist/` |
 | `npm run preview` | Serve the production build locally |
 | `npm test` | Run the test suite once |
+| `npm run test:coverage` | Run tests and write a coverage report to `coverage/` |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run typecheck` | Type-check the project without building |
 
@@ -69,9 +70,49 @@ brew-cafe/
 │   ├── pages/            # Home, Menu, About, Contact, NotFound
 │   ├── data/             # Menu items and cafe details
 │   └── test/             # Test setup and helpers
+├── Dockerfile            # Multi-stage build served by unprivileged nginx
+├── nginx.conf            # nginx config with SPA fallback
+├── sonar-project.properties  # SonarQube analysis settings
+├── .github/workflows/ci.yml  # Pull request CI
 ├── vite.config.ts        # Vite + Vitest config
 └── tsconfig*.json        # TypeScript config
 ```
+
+## Docker
+
+Build and run the production image locally:
+
+```bash
+docker build -t brew-cafe .
+docker run --rm -p 8080:8080 brew-cafe
+```
+
+Then open <http://localhost:8080>. The image serves the static build with nginx running as a non-root user on port
+8080, with an SPA fallback so routes like `/menu` work on refresh.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every pull request to `main`:
+
+| Job | What it does |
+| --- | --- |
+| **Test & Build** | `npm ci`, runs the tests with coverage, and builds the app |
+| **Docker Build & Trivy Scan** | Builds the Docker image and scans it with Trivy; fails on fixable `CRITICAL` or `HIGH` vulnerabilities |
+| **SonarQube Analysis** | Runs a SonarQube scan with the test coverage report and waits for the quality gate |
+
+### Required secrets
+
+Add these under **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Secret | Value |
+| --- | --- |
+| `SONAR_TOKEN` | A SonarQube token with permission to analyze the project |
+| `SONAR_HOST_URL` | Your SonarQube server URL, e.g. `https://sonarqube.example.com` |
+
+The SonarQube project key is `brew-cafe` (set in `sonar-project.properties`). Create a project with that key in
+SonarQube, or change the key to match an existing project.
+
+No deployment (CD) is configured yet.
 
 ## Customizing
 
